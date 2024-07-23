@@ -86,3 +86,20 @@ button {
     margin: 20px;
   }
 }
+
+svg {
+  border: 1px solid #ccc;
+  background-color: #f0f0f0;
+  max-width: 100%;
+  height: auto;
+}
+
+path {
+  stroke: #007bff;
+  stroke-width: 2;
+  fill: none;
+}
+
+circle {
+  fill: red;
+}

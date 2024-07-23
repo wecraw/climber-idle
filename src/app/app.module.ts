@@ -8,6 +8,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { StoreComponent } from './game/components/store/store.component';
 import { StatsComponent } from './game/components/stats/stats.component';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { HttpClientModule } from '@angular/common/http';
 
 @NgModule({
   declarations: [AppComponent, GameComponent, StoreComponent, StatsComponent],
@@ -16,6 +17,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     BrowserAnimationsModule,
     MatProgressBarModule,
     MatTooltipModule,
+    HttpClientModule,
   ],
   providers: [],
   bootstrap: [AppComponent],

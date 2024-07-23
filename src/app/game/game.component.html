@@ -99,3 +99,10 @@
   />
   <circle class="climber-dot" r="5" cx="0" cy="200" />
 </svg>
+
+<svg [attr.viewBox]="viewBox" width="100%" height="400">
+  <path [attr.d]="svgPath" fill="none" stroke="black" stroke-width="2" />
+  <circle r="5" fill="red">
+    <animateMotion [attr.path]="svgPath" dur="30s" repeatCount="indefinite" />
+  </circle>
+</svg>
