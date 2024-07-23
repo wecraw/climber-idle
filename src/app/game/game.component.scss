@@ -1,0 +1,88 @@
+.game-container {
+  padding: 20px;
+  max-width: 400px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.stamina-container {
+  margin-bottom: 20px;
+
+  h2 {
+    margin-bottom: 5px;
+  }
+}
+
+.stamina-value {
+  display: inline-block;
+  margin-left: 10px;
+}
+
+button {
+  width: 250px;
+}
+
+.mountain-container {
+  height: 200px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.mountain {
+  width: 0;
+  height: 0;
+  border-left: 100px solid transparent;
+  border-right: 100px solid transparent;
+  border-bottom: 200px solid #a9a9a9;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.climber {
+  height: 100px;
+}
+
+.header {
+  display: flex;
+  border-bottom: 1px solid black;
+  height: 50px;
+  line-height: 50px;
+  text-align: center;
+
+  .header-button {
+    cursor: pointer;
+    text-decoration: underline;
+  }
+}
+
+.mountain-svg {
+  width: 100%;
+  height: 200px;
+  margin-bottom: 20px;
+}
+
+.mountain-path {
+  fill: none;
+  stroke: #a9a9a9;
+  stroke-width: 2;
+}
+
+.progress-path {
+  fill: none;
+  stroke-width: 2;
+  stroke-dasharray: 565;
+  stroke-dashoffset: 565;
+  transition: stroke-dashoffset 0.3s linear;
+}
+
+.climber-dot {
+  fill: red;
+}
+
+.container {
+  &.store {
+    margin: 20px;
+  }
+}

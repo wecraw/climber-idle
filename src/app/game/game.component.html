@@ -1,0 +1,101 @@
+<div class="header">
+  <div class="container">
+    <div class="row">
+      <div
+        (click)="setScene(currentScene !== 'STORE' ? 'STORE' : 'MISSION')"
+        class="header-button noselect col-4"
+      >
+        {{ currentScene !== "STORE" ? "Store" : "Mission" }}
+      </div>
+      <div
+        (click)="setScene(currentScene !== 'GEAR' ? 'GEAR' : 'MISSION')"
+        class="noselect col-4 header-button"
+      >
+        {{ currentScene !== "GEAR" ? "Gear" : "Mission" }}
+      </div>
+      <div class="col-4">Money: ${{ playerStats.money }}</div>
+    </div>
+  </div>
+</div>
+<div *ngIf="currentScene === 'MISSION'" class="game-container">
+  <ng-container *ngIf="gameState.isOnMission">
+    <h2>{{ gameState.level.name }}</h2>
+    <svg class="mountain-svg" viewBox="0 0 300 200">
+      <path
+        class="mountain-path"
+        d="M0,200 L50,180 L100,190 L150,160 L200,180 L250,150 L300,200"
+      />
+      <path
+        class="progress-path"
+        d="M0,200 L50,180 L100,190 L150,160 L200,180 L250,150 L300,200"
+      />
+      <circle class="climber-dot" r="5" cx="0" cy="200" />
+    </svg>
+
+    <h2>
+      Height: {{ gameState.height | number : "1.1-1" }}m /
+      {{ gameState.maxHeight }}m
+    </h2>
+    <img
+      class="climber"
+      src="assets/walking_transparent.gif"
+      alt="Example GIF" />
+
+    <div class="stamina-container">
+      <h3>Stamina:</h3>
+      <!-- <span class="stamina-value"
+        >{{ gameState.currentStamina }}/{{ playerStats.maxStamina }}</span
+      > -->
+      <mat-progress-bar
+        mode="determinate"
+        [value]="(gameState.currentStamina / playerStats.maxStamina) * 100"
+        [color]="
+          (gameState.currentStamina / playerStats.maxStamina) * 100 > 20
+            ? 'primary'
+            : 'warn'
+        "
+      >
+      </mat-progress-bar></div
+  ></ng-container>
+
+  <ng-container *ngIf="!gameState.isOnMission">
+    <button
+      *ngFor="let level of levels"
+      (click)="startMission(level)"
+      [disabled]="isLevelDisabled(level)"
+    >
+      {{ level.name }}
+    </button>
+  </ng-container>
+</div>
+
+<div *ngIf="currentScene === 'STORE'" class="container store">
+  <!-- <button class="purchase-stamina" (click)="purchaseStamina()">
+    Purchase Stamina ($5)
+  </button> -->
+  <div class="button-container d-flex flex-column">
+    <button
+      *ngFor="let item of items"
+      (click)="purchaseItem(item)"
+      [matTooltip]="item.description"
+      matTooltipPosition="right"
+    >
+      {{ item.name }} (${{ item.price }})
+    </button>
+  </div>
+</div>
+
+<div *ngIf="currentScene === 'GEAR'" class="container gear"></div>
+
+<div>Debug: Stamina per tick: {{ staminaPerTick | number : "1.4-4" }}</div>
+<svg style="display: none" class="mountain-svg" viewBox="0 0 300 200">
+  <path
+    class="mountain-path"
+    d="M0,200 L50,180 L100,190 L150,160 L200,180 L250,150 L300,200"
+  />
+  <path
+    class="progress-path"
+    d="M0,200 L50,180 L100,190 L150,160 L200,180 L250,150 L300,200"
+  />
+  <circle class="climber-dot" r="5" cx="0" cy="200" />
+</svg>
