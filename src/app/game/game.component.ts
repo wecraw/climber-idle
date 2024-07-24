@@ -19,6 +19,8 @@ import { HttpClient } from '@angular/common/http';
 
 import GPXParser from 'gpxparser';
 
+import { parseGPX } from '@we-gold/gpxjs';
+
 @Component({
   selector: 'app-game',
   templateUrl: './game.component.html',
@@ -40,25 +42,13 @@ export class GameComponent implements OnInit, OnDestroy {
   pathLength: number = 0;
   items: Item[] = items;
 
-  svgPath: string = '';
-  viewBox: string = '';
+  elevationPath: string = '';
 
   private gameStateSubscription: Subscription | undefined;
   private playerStatsSubscription: Subscription | undefined;
   constructor(private gameService: GameService, private http: HttpClient) {}
 
   ngOnInit() {
-    this.loadGpxFile();
-
-    const mountainPath = document.querySelector(
-      '.mountain-path'
-    ) as SVGPathElement;
-
-    if (mountainPath) {
-      this.pathLength = mountainPath.getTotalLength();
-      console.log(this.pathLength);
-    }
-
     this.gameStateSubscription = this.gameService
       .getGameState()
       .subscribe((state) => {
@@ -77,93 +67,107 @@ export class GameComponent implements OnInit, OnDestroy {
         this.gameState = state;
         this.updateProgress();
       });
+
+    this.parseGPXAndGenerateElevationProfile();
   }
+  generateSVGPath(elevations: number[]) {
+    // Filter out any non-numeric values
+    const validElevations = elevations.filter(
+      (ele) => !isNaN(ele) && isFinite(ele)
+    );
+    console.log('Valid elevations:', validElevations);
 
-  loadGpxFile() {
-    this.http
-      .get('assets/gpx/rattlesnake.gpx', { responseType: 'text' })
-      .pipe(
-        tap((gpxContent: string) => {
-          const gpx = new GPXParser();
-          gpx.parse(gpxContent);
+    if (validElevations.length === 0) {
+      console.error('No valid elevation data found');
+      this.elevationPath = '';
+      return;
+    }
 
-          if (gpx.tracks.length > 0 && gpx.tracks[0].points.length > 0) {
-            const points = gpx.tracks[0].points;
-            const { path, minX, minY, maxX, maxY } =
-              this.convertToSvgPath(points);
-            this.svgPath = path;
-            this.viewBox = `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
-            console.log('SVG Path:', this.svgPath); // Log the path for debugging
-          }
-        }),
-        catchError((error) => {
-          console.error('Error loading GPX file:', error);
-          return of(null);
-        })
-      )
-      .subscribe();
-  }
+    const maxElevation = Math.max(...validElevations);
+    const minElevation = Math.min(...validElevations);
+    const elevationRange = maxElevation - minElevation;
 
-  convertToSvgPath(points: any[]): {
-    path: string;
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-  } {
-    let path = '';
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
+    const width = 400; // SVG width
+    const height = 200; // SVG height
+    const topMargin = 20;
 
-    // Find the bounds of the data
-    points.forEach((point) => {
-      minX = Math.min(minX, point.lon);
-      minY = Math.min(minY, point.lat);
-      maxX = Math.max(maxX, point.lon);
-      maxY = Math.max(maxY, point.lat);
+    const points = validElevations.map((ele, index) => {
+      const x = (index / (validElevations.length - 1)) * width;
+      const y =
+        height -
+        topMargin -
+        ((ele - minElevation) / elevationRange) * (height - topMargin);
+      return { x, y, elevation: ele };
     });
 
-    // Calculate scale to fit in 1000x1000 viewport
-    const width = maxX - minX;
-    const height = maxY - minY;
-    const scale = Math.min(1000 / width, 1000 / height);
+    // Calculate slopes
+    const slopes = [];
+    for (let i = 1; i < points.length; i++) {
+      const elevationDiff = points[i].elevation - points[i - 1].elevation;
+      const horizontalDist = points[i].x - points[i - 1].x;
+      const slope = elevationDiff / horizontalDist;
+      slopes.push(slope);
+    }
 
-    // Create the path, scaling and inverting Y axis
-    points.forEach((point, index) => {
-      const x = (point.lon - minX) * scale;
-      const y = 1000 - (point.lat - minY) * scale; // Invert Y axis
-      if (index === 0) {
-        path += `M${x},${y}`;
-      } else {
-        path += ` L${x},${y}`;
-      }
-    });
+    console.log('Slopes:', slopes);
 
-    return { path, minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
+    // Additional statistics about slopes
+    const maxSlope = Math.max(...slopes);
+
+    this.elevationPath = `M${points
+      .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+      .join(' L')}`;
+    console.log('Final SVG path:', this.elevationPath);
   }
+
+  parseGPXAndGenerateElevationProfile() {
+    fetch('/assets/gpx/r2.gpx')
+      .then((response) => response.text())
+      .then((gpxData) => {
+        console.log('Raw GPX data:', gpxData);
+
+        const gpx = new GPXParser(); // Create a new GPXParser instance
+        gpx.parse(gpxData); // Parse the GPX data
+
+        console.log('Parsed GPX data:', gpx);
+
+        if (!gpx.tracks || gpx.tracks.length === 0) {
+          console.error('No tracks found in GPX data');
+          return;
+        }
+
+        const track = gpx.tracks[0];
+        console.log('First track:', track);
+
+        if (!track.points || track.points.length === 0) {
+          console.error('No points found in the first track');
+          return;
+        }
+
+        const elevations = track.points.map((point) => point.ele);
+        console.log('Extracted elevations:', elevations);
+
+        this.generateSVGPath(elevations);
+      })
+      .catch((error) => {
+        console.error('Error loading or parsing GPX file:', error);
+      });
+  }
+
   updateProgress() {
-    if (!this.gameState.isOnMission) return;
+    if (!this.gameState.isOnMission || !this.elevationPath) return;
 
     const progressPercentage = this.gameState.height / this.gameState.maxHeight;
-    const pathLength = this.pathLength; // Total length of the path
-    const progressPath = document.querySelector(
-      '.progress-path'
-    ) as SVGPathElement;
+    const svgPath = document.querySelector('path') as SVGPathElement;
     const climberDot = document.querySelector(
       '.climber-dot'
     ) as SVGCircleElement;
 
-    if (progressPath && climberDot) {
-      const dashOffset = pathLength - pathLength * progressPercentage;
-      progressPath.style.strokeDashoffset = `${dashOffset}`;
-
-      const point = progressPath.getPointAtLength(
-        pathLength * progressPercentage
-      );
+    if (svgPath && climberDot) {
+      const pathLength = svgPath.getTotalLength();
+      const point = svgPath.getPointAtLength(pathLength * progressPercentage);
       climberDot.setAttribute('cx', point.x.toString());
-      climberDot.setAttribute('cy', point.y.toString());
+      climberDot.setAttribute('cy', (point.y + 20).toString()); // Add 20 to account for the translation
     }
   }
 
@@ -178,10 +182,7 @@ export class GameComponent implements OnInit, OnDestroy {
 
   startMission(level: LevelProperties) {
     this.gameService.startMission(level);
-  }
-
-  purchaseStamina() {
-    this.gameService.purchaseStamina();
+    this.updateProgress();
   }
 
   purchaseItem(item: Item) {

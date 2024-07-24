@@ -4,6 +4,7 @@ export interface GameState {
   currentStamina: number;
   level: LevelProperties;
   maxHeight: number;
+  currentSlope: number;
 }
 
 export interface PlayerStats {

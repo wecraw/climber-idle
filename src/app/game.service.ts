@@ -19,6 +19,7 @@ export class GameService {
     currentStamina: 100,
     level: levels[0],
     maxHeight: 50,
+    currentSlope: 0, // Add this line
   });
 
   private playerStats = new BehaviorSubject<PlayerStats>(defaultPlayerStats);
@@ -54,6 +55,7 @@ export class GameService {
       height: 0,
       maxHeight: level.maxHeight,
       level: level,
+      currentSlope: 0, // Initialize slope
     });
 
     this.gameLoop = interval(this.TICK_INTERVAL).subscribe(() => {
@@ -116,7 +118,20 @@ export class GameService {
   calculateStaminaPerTick(): number {
     const playerWeight = this.calculatePlayerWeight();
     const weightMultiplier = 1 + playerWeight / 100;
-    return 0.2 * weightMultiplier;
+    const baseStaminaConsumption = 0.2 * weightMultiplier;
+
+    const currentSlope = this.gameState.value.currentSlope;
+    let slopeMultiplier = 1;
+
+    if (currentSlope > 0) {
+      // Uphill: increase stamina consumption
+      slopeMultiplier = 1 + currentSlope;
+    } else if (currentSlope < 0) {
+      // Downhill: decrease stamina consumption
+      slopeMultiplier = Math.max(0.5, 1 + currentSlope); // Ensure it doesn't go below 0.5
+    }
+
+    return baseStaminaConsumption * slopeMultiplier;
   }
 
   private gameTick() {
@@ -135,9 +150,14 @@ export class GameService {
     );
     const newHeight = currentGameState.height + 0.5;
 
+    // Here, you would update the currentSlope based on your elevation data
+    // For this example, let's assume we have a method to get the slope at a given height
+    // const newSlope = this.getSlopeAtHeight(newHeight);
+
     this.updateGameState({
       currentStamina: newStamina,
       height: newHeight,
+      currentSlope: 0,
     });
 
     // Check for mission end conditions
