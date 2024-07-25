@@ -8,6 +8,7 @@ import {
   Item,
 } from './game/interfaces/interfaces';
 import { defaultPlayerStats } from './game/content/defaults';
+import { ElevationService } from './elevation.service';
 
 @Injectable({
   providedIn: 'root',
@@ -16,7 +17,7 @@ export class GameService {
   private gameState = new BehaviorSubject<GameState>({
     isOnMission: false,
     height: 0,
-    currentStamina: 100,
+    currentStamina: 1000,
     level: levels[0],
     maxHeight: 50,
     currentSlope: 0, // Add this line
@@ -26,6 +27,8 @@ export class GameService {
 
   private gameLoop: Subscription | null = null;
   private readonly TICK_INTERVAL = 100; // milliseconds
+
+  constructor(private elevationService: ElevationService) {}
 
   private calculatePlayerWeight(): number {
     const items = this.playerStats.value.inventoryItems;
@@ -53,9 +56,9 @@ export class GameService {
     this.updateGameState({
       isOnMission: true,
       height: 0,
-      maxHeight: level.maxHeight,
+      maxHeight: this.elevationService.getMaxHeight(),
       level: level,
-      currentSlope: 0, // Initialize slope
+      currentSlope: 0,
     });
 
     this.gameLoop = interval(this.TICK_INTERVAL).subscribe(() => {
@@ -100,20 +103,20 @@ export class GameService {
     });
   }
 
-  purchaseStamina() {
-    const currentPlayerStats = this.playerStats.value;
-    const currentGameState = this.gameState.value;
-    const staminaCost = 5;
-    if (currentPlayerStats.money >= staminaCost) {
-      this.updatePlayerStats({
-        money: currentPlayerStats.money - staminaCost,
-        maxStamina: currentPlayerStats.maxStamina + 1,
-      });
-      this.updateGameState({
-        currentStamina: currentGameState.currentStamina + 1,
-      });
-    }
-  }
+  // purchaseStamina() {
+  //   const currentPlayerStats = this.playerStats.value;
+  //   const currentGameState = this.gameState.value;
+  //   const staminaCost = 5;
+  //   if (currentPlayerStats.money >= staminaCost) {
+  //     this.updatePlayerStats({
+  //       money: currentPlayerStats.money - staminaCost,
+  //       maxStamina: currentPlayerStats.maxStamina + 1,
+  //     });
+  //     this.updateGameState({
+  //       currentStamina: currentGameState.currentStamina + 1,
+  //     });
+  //   }
+  // }
 
   calculateStaminaPerTick(): number {
     const playerWeight = this.calculatePlayerWeight();
@@ -125,7 +128,7 @@ export class GameService {
 
     if (currentSlope > 0) {
       // Uphill: increase stamina consumption
-      slopeMultiplier = 1 + currentSlope;
+      slopeMultiplier = 1 + currentSlope * 2; // Adjust this multiplier as needed
     } else if (currentSlope < 0) {
       // Downhill: decrease stamina consumption
       slopeMultiplier = Math.max(0.5, 1 + currentSlope); // Ensure it doesn't go below 0.5
@@ -138,6 +141,13 @@ export class GameService {
     const currentGameState = this.gameState.value;
     const currentPlayerStats = this.playerStats.value;
 
+    const newHeight = currentGameState.height + 0.5;
+    const newSlope = this.elevationService.getSlopeAtHeight(newHeight);
+
+    this.updateGameState({
+      currentSlope: newSlope,
+    });
+
     const staminaPerTick = this.calculateStaminaPerTick();
 
     // Update game state
@@ -148,16 +158,10 @@ export class GameService {
         currentGameState.currentStamina - staminaPerTick
       )
     );
-    const newHeight = currentGameState.height + 0.5;
-
-    // Here, you would update the currentSlope based on your elevation data
-    // For this example, let's assume we have a method to get the slope at a given height
-    // const newSlope = this.getSlopeAtHeight(newHeight);
 
     this.updateGameState({
       currentStamina: newStamina,
       height: newHeight,
-      currentSlope: 0,
     });
 
     // Check for mission end conditions

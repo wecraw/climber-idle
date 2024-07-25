@@ -14,12 +14,8 @@ import {
   GameState,
   Item,
 } from './interfaces/interfaces';
-import { catchError, of, Subscription, tap } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
-
-import GPXParser from 'gpxparser';
-
-import { parseGPX } from '@we-gold/gpxjs';
+import { Subscription } from 'rxjs';
+import { ElevationService } from '../elevation.service';
 
 @Component({
   selector: 'app-game',
@@ -46,14 +42,20 @@ export class GameComponent implements OnInit, OnDestroy {
 
   private gameStateSubscription: Subscription | undefined;
   private playerStatsSubscription: Subscription | undefined;
-  constructor(private gameService: GameService, private http: HttpClient) {}
+  constructor(
+    private gameService: GameService,
+    private elevationService: ElevationService
+  ) {}
 
   ngOnInit() {
+    this.loadElevationData();
+
     this.gameStateSubscription = this.gameService
       .getGameState()
       .subscribe((state) => {
         this.gameState = state;
         this.staminaPerTick = this.gameService.calculateStaminaPerTick();
+        this.updateProgress();
       });
     this.playerStatsSubscription = this.gameService
       .getPlayerStats()
@@ -61,97 +63,17 @@ export class GameComponent implements OnInit, OnDestroy {
         this.playerStats = stats;
         this.staminaPerTick = this.gameService.calculateStaminaPerTick();
       });
-    this.gameStateSubscription = this.gameService
-      .getGameState()
-      .subscribe((state) => {
-        this.gameState = state;
-        this.updateProgress();
-      });
-
-    this.parseGPXAndGenerateElevationProfile();
   }
-  generateSVGPath(elevations: number[]) {
-    // Filter out any non-numeric values
-    const validElevations = elevations.filter(
-      (ele) => !isNaN(ele) && isFinite(ele)
+
+  loadElevationData() {
+    this.elevationService.loadGPXFile('/assets/gpx/r2.gpx').subscribe(
+      () => {
+        this.elevationService
+          .getElevationPath()
+          .subscribe((path) => (this.elevationPath = path));
+      },
+      (error) => console.error('Error loading GPX file:', error)
     );
-    console.log('Valid elevations:', validElevations);
-
-    if (validElevations.length === 0) {
-      console.error('No valid elevation data found');
-      this.elevationPath = '';
-      return;
-    }
-
-    const maxElevation = Math.max(...validElevations);
-    const minElevation = Math.min(...validElevations);
-    const elevationRange = maxElevation - minElevation;
-
-    const width = 400; // SVG width
-    const height = 200; // SVG height
-    const topMargin = 20;
-
-    const points = validElevations.map((ele, index) => {
-      const x = (index / (validElevations.length - 1)) * width;
-      const y =
-        height -
-        topMargin -
-        ((ele - minElevation) / elevationRange) * (height - topMargin);
-      return { x, y, elevation: ele };
-    });
-
-    // Calculate slopes
-    const slopes = [];
-    for (let i = 1; i < points.length; i++) {
-      const elevationDiff = points[i].elevation - points[i - 1].elevation;
-      const horizontalDist = points[i].x - points[i - 1].x;
-      const slope = elevationDiff / horizontalDist;
-      slopes.push(slope);
-    }
-
-    console.log('Slopes:', slopes);
-
-    // Additional statistics about slopes
-    const maxSlope = Math.max(...slopes);
-
-    this.elevationPath = `M${points
-      .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
-      .join(' L')}`;
-    console.log('Final SVG path:', this.elevationPath);
-  }
-
-  parseGPXAndGenerateElevationProfile() {
-    fetch('/assets/gpx/r2.gpx')
-      .then((response) => response.text())
-      .then((gpxData) => {
-        console.log('Raw GPX data:', gpxData);
-
-        const gpx = new GPXParser(); // Create a new GPXParser instance
-        gpx.parse(gpxData); // Parse the GPX data
-
-        console.log('Parsed GPX data:', gpx);
-
-        if (!gpx.tracks || gpx.tracks.length === 0) {
-          console.error('No tracks found in GPX data');
-          return;
-        }
-
-        const track = gpx.tracks[0];
-        console.log('First track:', track);
-
-        if (!track.points || track.points.length === 0) {
-          console.error('No points found in the first track');
-          return;
-        }
-
-        const elevations = track.points.map((point) => point.ele);
-        console.log('Extracted elevations:', elevations);
-
-        this.generateSVGPath(elevations);
-      })
-      .catch((error) => {
-        console.error('Error loading or parsing GPX file:', error);
-      });
   }
 
   updateProgress() {
